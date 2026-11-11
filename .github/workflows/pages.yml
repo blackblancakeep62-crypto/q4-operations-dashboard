@@ -1,0 +1,85 @@
+name: Sync and deploy Q4 dashboard
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    # 09:17 and 17:17 Asia/Shanghai; avoid the busy top of the hour.
+    - cron: '17 1,9 * * *'
+permissions:
+  contents: read
+concurrency:
+  group: q4-pages-sync
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Restore durable aggregate state
+        shell: bash
+        run: |
+          mkdir -p .private
+          if git ls-remote --exit-code --heads origin data-state >/dev/null 2>&1; then
+            git fetch origin data-state
+            git worktree add .pages-state FETCH_HEAD
+            cp .pages-state/*.json .private/
+          else
+            cp pages-seed/*.json .private/
+          fi
+      - name: Synchronize formula results (read-only)
+        id: sync
+        run: npm run sync:pages
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          GOOGLE_SPREADSHEET_ID: ${{ secrets.GOOGLE_SPREADSHEET_ID }}
+      - name: Persist only allowlisted aggregates and snapshots
+        shell: bash
+        run: |
+          if [ ! -d .pages-state ]; then
+            git worktree add --detach .pages-state
+            git -C .pages-state checkout --orphan data-state
+            git -C .pages-state rm -rf .
+          fi
+          PAGES_STATE_DIR=.pages-state npx tsx scripts/export-pages-state.ts
+          git -C .pages-state config user.name 'github-actions[bot]'
+          git -C .pages-state config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -C .pages-state add -- '*.json'
+          if ! git -C .pages-state diff --cached --quiet; then
+            git -C .pages-state commit -m 'Update dashboard aggregate snapshots'
+            git -C .pages-state push origin HEAD:data-state
+          fi
+      - run: npm test
+      - name: Build static dashboard
+        run: npm run build:pages
+        env:
+          PAGES_BASE_PATH: /${{ github.event.repository.name }}
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: .pages-build/out
+      - name: Summarize synchronization
+        run: |
+          echo 'Google Sheets synchronized: ${{ steps.sync.outputs.synced }}. On failure the last successful data remains published.' >> "$GITHUB_STEP_SUMMARY"
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment
