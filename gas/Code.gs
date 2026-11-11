@@ -1,5 +1,5 @@
 // Copy this entire file into Apps Script. No credentials or spreadsheet IDs in code.
-const Q4_RANGES = ['T11:T12', 'A13:T16', 'A21:T23', 'A29:T31', 'A37:T39', 'A45:T47', 'A55:G74', 'A77:G79'];
+const Q4_RANGES = ['T11:T12', 'A13:T16', 'A21:T23', 'A29:T31', 'A37:T39', 'A45:T47', 'A55:I74'];
 
 function json_(value) {
   return ContentService.createTextOutput(JSON.stringify(value))

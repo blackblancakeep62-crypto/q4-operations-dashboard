@@ -9,7 +9,7 @@
 - 当前同步入口为 GAS Web App，完整代码在 `gas/Code.gs`。Actions不再注入Google服务账号/OAuth凭据，只注入 `GAS_WEB_APP_URL` 和 `GAS_SHARED_KEY`；旧Google Secrets可删除。密钥只放POST请求体，不进入URL、前端、构建产物或日志。
 - Settings → Pages → Source选 **GitHub Actions**。无需自购域名；使用GitHub免费HTTPS网址。
 - `pages-seed/`是经过字段白名单筛选的首次汇总缓存；后续每日状态持久化在 **data-state分支**，包含历史日销售汇总、真实每日快照、最后成功数据及同步状态。该分支也是公开的，不存ERP明细、ASIN、完整负责人表或凭据。恢复时优先读取此分支，不使用会过期的Actions缓存保存业务数据。
-- 正常同步仅批量读取`01_经营目标`的8个范围；历史缓存缺失/版本不符时停止同步，保留旧数据，不自动全量扫描历史或ERP。同日快照覆盖更新，缺失日期保持缺失。
+- 正常同步仅批量读取`01_经营目标`的7个范围；历史缓存缺失/版本不符时停止同步，保留旧数据，不自动全量扫描历史或ERP。同日快照覆盖更新，缺失日期保持缺失。
 - 同步失败仍保留最后成功数值及原时间，并在网页标注；首次没有可用数据则停止部署。构建或发布失败时GitHub保留原站点。
 - 后续更新：修改源码并推送main即可自动构建发布；不要直接修改data-state业务数值。所有任务串行执行，避免覆盖快照。
 - 仅使用免费标准Linux runner。GitHub定时任务可能延迟，公开仓库长期无活动可能暂停计划任务；管理员应检查Actions执行记录。未配置GAS Secrets时只能发布最后成功缓存，不能宣称已完成实时同步。
@@ -23,7 +23,7 @@
 5. Actions → Sync and deploy Q4 dashboard → Run workflow。摘要必须显示 `synchronized: true` 才是实际同步成功；仅工作流绿色可能表示旧数据回退成功。检查网页最近成功同步时间及T11截止日期。
 6. 修改Code.gs后必须“部署 → 管理部署 → 编辑 → 新版本 → 部署”，保留原URL。只改脚本属性里的密钥不需新版本，但要同步更新GitHub Secret。
 
-GAS仅允许POST `readTargets`，固定读取8个目标表范围，使用`getValues()`读取公式结果；拒绝任意工作表/范围请求，不读取ERP。日期按表格时区转成YYYY-MM-DD。GAS的SpreadsheetApp可能申请较宽的表格权限，但本代码不执行任何表格写入；不要把脚本项目共享给无关人员。
+GAS仅允许POST `readTargets`，固定读取7个目标表范围，使用`getValues()`读取公式结果；拒绝任意工作表/范围请求，不读取ERP。日期按表格时区转成YYYY-MM-DD。GAS的SpreadsheetApp可能申请较宽的表格权限，但本代码不执行任何表格写入；不要把脚本项目共享给无关人员。
 
 验证：`npm test`；`PAGES_BASE_PATH=/q4-operations-dashboard npm run build:pages`（PowerShell先设置同名环境变量）。静态文件在`.pages-build/out`，实际网页仅加载`dashboard.json`。旧容器/SSO配置保留备用，不属于当前发布流程。
 
@@ -119,7 +119,7 @@ npx tsx scripts/rebuild-history.ts --local-import
 - 历史：公司用国家每日，各组用父单每日；保留未归属并对账。当前点采用T列。
 - 实际：P列10月31日锚点 + 每日O列权威快照。首次仅有锚点和当前业务日，其间缺失日期保持空值。
 - 计划：F—N月目标按2025同月每日销售权重分配；缺少完整历史月份时计划缺失，不当作实际。
-- 近7天：从连续8个每日快照端点计算累计差值和差距改善，不足则显示“数据不足”。不会为排行榜补造数据。
+- 近7天：从连续7个每日快照端点计算累计差值和差距改善，不足则显示“数据不足”。不会为排行榜补造数据。
 - 利润、销售风险依据权威目标表；ERP异常不压制官方风险判断。阈值统一在 `lib/config.ts`。
 - 目标表时区保留America/Los_Angeles；业务日期不做跨时区偏移，读取时间显示Asia/Shanghai。T11须由业务维护为已确认完整日期。
 
@@ -138,7 +138,7 @@ HTTPS反向代理部署时设置 `APP_ORIGIN` 为员工访问的完整源（例�
 3. Google项目启用Sheets API；创建专用服务账号，将原表以“查看者”共享给其邮箱。密钥文件放 `/srv/q4/secrets/google-service-account.json`，只读挂载，不发到聊天中。secrets目录归UID1000所有、权限0700；Google密钥归UID1000所有、权限0600。邮箱名单文件设0644，允许OAuth2 Proxy容器的非root用户读取其单文件挂载（名单不含密码）；主机目录本身仍仅管理员/UID1000可遍历。
 4. OIDC配置回调 `https://你的域名/oauth2/callback`，必须提供可信的已验证email声明。创建 `/srv/q4/secrets/allowed-emails.txt`，每行一个授权邮箱，禁止通配符。复制 `deploy/.env.example` 为 `deploy/.env`，填入OIDC配置，分别生成独立网关/同步密钥及cookie密钥，文件权限0600。
 5. 在 `/opt/q4/deploy` 执行 `docker compose config --quiet`、`docker compose build`、`docker compose up -d`。Caddy自动申请/续期HTTPS证书，证书保存在独立Docker命名卷。先验收授权/未授权账号，再开放团队使用。
-6. 将 `deploy/q4-sync.service`、`deploy/q4-sync.timer` 安装至 `/etc/systemd/system/`，执行 `systemctl daemon-reload`、`systemctl enable --now q4-sync.timer`、`systemctl start q4-sync.service`。每天北京时间09:00无人访问也会同步；服务器停机错过触发会在恢复后补执行，失败每15分钟重试。它调用同一应用进程的内部刷新接口，沿用8个目标表范围，避免额外写进程；网关拒绝外部访问此接口。
+6. 将 `deploy/q4-sync.service`、`deploy/q4-sync.timer` 安装至 `/etc/systemd/system/`，执行 `systemctl daemon-reload`、`systemctl enable --now q4-sync.timer`、`systemctl start q4-sync.service`。每天北京时间09:00无人访问也会同步；服务器停机错过触发会在恢复后补执行，失败每15分钟重试。它调用同一应用进程的内部刷新接口，沿用7个目标表范围，避免额外写进程；网关拒绝外部访问此接口。
 
 成员增删：修改 `allowed-emails.txt`，应用每次请求重新检查，删除后旧会话也无法读取数据；执行 `docker compose restart oauth2` 让网关同步更新名单。新增成员默认只读，不授予服务器或表格编辑权限。更换OIDC或Cookie密钥需重建相应容器；管理权限仅授予运维人员。
 

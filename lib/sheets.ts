@@ -67,8 +67,7 @@ export const TARGET_RANGES = [
   "A29:T31",
   "A37:T39",
   "A45:T47",
-  "A55:G74",
-  "A77:G79",
+  "A55:I74",
 ];
 export async function readTargets(): Promise<Rows> {
   const gas = process.env.SHEETS_TRANSPORT === "gas" || !!process.env.GAS_WEB_APP_URL;

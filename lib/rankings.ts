@@ -2,8 +2,8 @@ import type { Rows } from "./model";
 export type RankingEntry = { rank: number; name: string; value: number };
 export type PersonnelRankings = {
   completion: RankingEntry[];
-  sales: RankingEntry[];
-  profit: RankingEntry[];
+  salesGrowth?: RankingEntry[];
+  profitGrowth?: RankingEntry[];
 };
 function value(cell: unknown): number | null {
   if (typeof cell === "number") return Number.isFinite(cell) ? cell : null;
@@ -17,24 +17,16 @@ function name(cell: unknown) {
   return typeof cell === "string" && cell.trim() !== "无" ? cell.trim() : "";
 }
 export function parseRankings(rows: Rows): PersonnelRankings {
-  const completion = rows
+  const ranked = (column: number) => rows
     .slice(54, 74)
     .flatMap((r) => {
       const n = name(r[0]),
-        v = value(r[6]);
+        v = value(r[column]);
       return n && v !== null ? [{ rank: 0, name: n, value: v }] : [];
     })
     .sort((a, b) => b.value - a.value)
     .slice(0, 3)
     .map((r, i) => ({ ...r, rank: i + 1 }));
-  const ranked = (rankCol: number, nameCol: number, valueCol: number) =>
-    rows.slice(76, 79).flatMap((r) => {
-      const n = name(r[nameCol]),
-        v = value(r[valueCol]),
-        rank = value(r[rankCol]);
-      return n && v !== null && rank !== null && [1, 2, 3].includes(rank)
-        ? [{ rank, name: n, value: v }]
-        : [];
-    });
-  return { completion, sales: ranked(0, 1, 2), profit: ranked(4, 5, 6) };
+  return { completion: ranked(6), salesGrowth: ranked(7), profitGrowth: ranked(8) };
 }
+export const growthPercent = (n: number) => `${n >= 0 ? "+" : ""}${(n * 100).toFixed(1)}%`;

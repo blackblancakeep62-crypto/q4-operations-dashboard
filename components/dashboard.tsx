@@ -23,6 +23,7 @@ import {
   Clock3,
 } from "lucide-react";
 import { SCOPES, TIERS, thresholds, type Scope, type Tier } from "@/lib/config";
+import { growthPercent } from "@/lib/rankings";
 import {
   curve,
   curveMaximum,
@@ -657,17 +658,17 @@ export default function Dashboard() {
                     percent: true,
                   },
                   {
-                    key: "sales",
-                    title: "销售额 Top 3",
-                    period: "10月财务 · 销售额",
-                    entries: data.rankings?.sales ?? [],
+                    key: "salesGrowth",
+                    title: "11月销售额增长率 Top 3",
+                    period: "11月对比10月",
+                    entries: data.rankings?.salesGrowth ?? [],
                     percent: false,
                   },
                   {
-                    key: "profit",
-                    title: "净利润 Top 3",
-                    period: "10月财务 · 净利润",
-                    entries: data.rankings?.profit ?? [],
+                    key: "profitGrowth",
+                    title: "11月利润增长率 Top 3",
+                    period: "11月对比10月",
+                    entries: data.rankings?.profitGrowth ?? [],
                     percent: false,
                   },
                 ].map((board) => (
@@ -692,13 +693,7 @@ export default function Dashboard() {
                             {person
                               ? board.percent
                                 ? pct(person.value)
-                                : (person.value / 10000).toLocaleString(
-                                    "zh-CN",
-                                    {
-                                      minimumFractionDigits: 2,
-                                      maximumFractionDigits: 2,
-                                    },
-                                  ) + " 万元"
+                                : growthPercent(person.value)
                               : "—"}
                           </span>
                         </div>

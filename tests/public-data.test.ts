@@ -18,5 +18,8 @@ test("public payload preserves all dashboard calculations and strips non-dashboa
     assert.deepEqual(recent(projected, g, tier), recent(s, g, tier));
   }
   for (const tier of TIERS) assert.deepEqual(businessRisks(projected, tier), businessRisks(s, tier));
-  assert.deepEqual(projected.rankings, s.rankings);
+  assert.deepEqual(projected.rankings?.completion, s.rankings?.completion);
+  assert.deepEqual(projected.rankings?.salesGrowth, s.rankings?.salesGrowth ?? []);
+  assert.deepEqual(projected.rankings?.profitGrowth, s.rankings?.profitGrowth ?? []);
+  assert.equal("sales" in (projected.rankings ?? {}), false);
 });

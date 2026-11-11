@@ -74,7 +74,7 @@ test("batch formula values, target-only refresh, durable same-day upsert and cac
     history: {},
     risks: [],
   });
-  rows[54] = ["Test owner", null, null, null, null, null, 0.875];
+  rows[54] = ["Test owner", null, null, null, null, null, 0.875, 0.464, 2.824];
   rows[76] = [1, "Sales owner", 123456, null, 1, "Profit owner", 78900];
   let calls = 0;
   global.fetch = async (input) => {
@@ -83,7 +83,7 @@ test("batch formula values, target-only refresh, durable same-day upsert and cac
     assert.ok(url.includes("/values:batchGet?"));
     const query = new URL(url).searchParams;
     assert.equal(query.get("valueRenderOption"), "UNFORMATTED_VALUE");
-    assert.equal(query.getAll("ranges").length, 8);
+    assert.equal(query.getAll("ranges").length, 7);
     assert.ok(
       query.getAll("ranges").every((r) => r.startsWith("'01_经营目标'!")),
     );
@@ -106,7 +106,8 @@ test("batch formula values, target-only refresh, durable same-day upsert and cac
     assert.equal(s.targets["公司"].sales, 156);
     assert.equal(calls, 1);
     assert.equal(s.rankings?.completion[0].value, 0.875);
-    assert.equal(s.rankings?.sales[0].value, 123456);
+    assert.equal(s.rankings?.salesGrowth?.[0].value, 0.464);
+    assert.equal(s.rankings?.profitGrowth?.[0].value, 2.824);
     assert.equal(s.actualHistory["公司"]["2026-11-08"].sales, 156);
     s.targets["公司"].sales = 160;
     await persistDaily(s);
