@@ -20,7 +20,7 @@ async function main() {
     if (!previous) throw Error("No valid snapshot available; deployment stopped.");
     await writeStore("pages-sync-status.json", {ok: false, attemptedAt: new Date().toISOString()});
     if (process.env.GITHUB_OUTPUT) await fs.appendFile(process.env.GITHUB_OUTPUT, "synced=false\n");
-    console.warn("::warning::Google Sheets synchronization failed; last successful snapshot retained. Check repository Secrets and Sheets viewer permission.");
+    console.warn("::warning::Google Sheets synchronization failed; last successful snapshot retained. Check GAS_WEB_APP_URL, GAS_SHARED_KEY and the deployed Apps Script web app permissions/version.");
   }
   // State is uploaded only after projection by the dedicated export step.
   if (!(await fs.stat(path.join(privateDir, "snapshot-v2.json"))).isFile()) throw Error("Snapshot missing");

@@ -6,13 +6,24 @@
 
 - `npm run build:pages` 在隔离的 `.pages-build` 目录导出原有UI，不包含API、登录代理或原始明细。本地 `npm run dev` 仍使用原服务端模式。
 - `.github/workflows/pages.yml` 在main更新、手动Run workflow、每天北京时间09:17和17:17运行。页面“读取最新快照”仅重新下载已发布数据；管理员需要立即读取Sheets时，在仓库Actions选择 **Sync and deploy Q4 dashboard → Run workflow**。
-- 仓库Settings → Secrets and variables → Actions配置 `GOOGLE_SERVICE_ACCOUNT_JSON`（服务账号JSON）和 `GOOGLE_SPREADSHEET_ID`（目标表ID）。服务账号只需要该表“查看者”权限，并启用Sheets API；不需要开通收费资源。密钥只作为同步步骤的环境变量注入，不进入源码、构建产物或日志。
+- 当前同步入口为 GAS Web App，完整代码在 `gas/Code.gs`。Actions不再注入Google服务账号/OAuth凭据，只注入 `GAS_WEB_APP_URL` 和 `GAS_SHARED_KEY`；旧Google Secrets可删除。密钥只放POST请求体，不进入URL、前端、构建产物或日志。
 - Settings → Pages → Source选 **GitHub Actions**。无需自购域名；使用GitHub免费HTTPS网址。
 - `pages-seed/`是经过字段白名单筛选的首次汇总缓存；后续每日状态持久化在 **data-state分支**，包含历史日销售汇总、真实每日快照、最后成功数据及同步状态。该分支也是公开的，不存ERP明细、ASIN、完整负责人表或凭据。恢复时优先读取此分支，不使用会过期的Actions缓存保存业务数据。
 - 正常同步仅批量读取`01_经营目标`的8个范围；历史缓存缺失/版本不符时停止同步，保留旧数据，不自动全量扫描历史或ERP。同日快照覆盖更新，缺失日期保持缺失。
 - 同步失败仍保留最后成功数值及原时间，并在网页标注；首次没有可用数据则停止部署。构建或发布失败时GitHub保留原站点。
 - 后续更新：修改源码并推送main即可自动构建发布；不要直接修改data-state业务数值。所有任务串行执行，避免覆盖快照。
-- 仅使用免费标准Linux runner。GitHub定时任务可能延迟，公开仓库长期无活动可能暂停计划任务；管理员应检查Actions执行记录。未配置Google Secrets时只能发布初始真实缓存，不能宣称已完成实时同步。
+- 仅使用免费标准Linux runner。GitHub定时任务可能延迟，公开仓库长期无活动可能暂停计划任务；管理员应检查Actions执行记录。未配置GAS Secrets时只能发布最后成功缓存，不能宣称已完成实时同步。
+
+### GAS设置（无需Google Cloud控制台）
+
+1. 将 `gas/Code.gs` 全文复制到Apps Script的Code.gs并保存。项目设置 → 脚本属性新增 `Q4_SPREADSHEET_ID`，填原表链接中 `/d/` 与 `/edit` 之间的ID。
+2. 在编辑器选择 `authorizeReader`，点击运行并由表格可访问账号完成Google授权。该函数只读取T11，并在未配置时生成64字符共享密钥。返回项目设置，复制脚本属性 `Q4_SHARED_KEY`；不将密钥发送到聊天或写进代码。
+3. 部署 → 新部署 → 类型“网页应用”：执行身份选择“我”；访问权限选择“任何人”（无需登录），由代码里的密钥校验保护读取。授权界面由你本人确认；若公司账号禁用匿名网页应用，需要管理员允许。不要选择仅Google账号可访问，否则Actions会收到登录页面。
+4. 复制部署返回的正式 `/exec` URL（不用 `/dev`，不加查询参数）。打开GitHub仓库Settings → Secrets and variables → Actions，添加 `GAS_WEB_APP_URL`＝该URL、`GAS_SHARED_KEY`＝脚本属性里相同的密钥。Google表格ID仅保存在GAS脚本属性，无需再添加到GitHub。
+5. Actions → Sync and deploy Q4 dashboard → Run workflow。摘要必须显示 `synchronized: true` 才是实际同步成功；仅工作流绿色可能表示旧数据回退成功。检查网页最近成功同步时间及T11截止日期。
+6. 修改Code.gs后必须“部署 → 管理部署 → 编辑 → 新版本 → 部署”，保留原URL。只改脚本属性里的密钥不需新版本，但要同步更新GitHub Secret。
+
+GAS仅允许POST `readTargets`，固定读取8个目标表范围，使用`getValues()`读取公式结果；拒绝任意工作表/范围请求，不读取ERP。日期按表格时区转成YYYY-MM-DD。GAS的SpreadsheetApp可能申请较宽的表格权限，但本代码不执行任何表格写入；不要把脚本项目共享给无关人员。
 
 验证：`npm test`；`PAGES_BASE_PATH=/q4-operations-dashboard npm run build:pages`（PowerShell先设置同名环境变量）。静态文件在`.pages-build/out`，实际网页仅加载`dashboard.json`。旧容器/SSO配置保留备用，不属于当前发布流程。
 

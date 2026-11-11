@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { sheetNames, thresholds } from "./config";
 import type { Raw, Rows } from "./model";
+import { readGasTargets } from "./gas";
 export const privateDir = path.resolve(
   /* turbopackIgnore: true */ process.env.CACHE_DIR || ".private",
 );
@@ -70,6 +71,10 @@ export const TARGET_RANGES = [
   "A77:G79",
 ];
 export async function readTargets(): Promise<Rows> {
+  const gas = process.env.SHEETS_TRANSPORT === "gas" || !!process.env.GAS_WEB_APP_URL;
+  let result;
+  if (gas) result = await readGasTargets(TARGET_RANGES);
+  else {
   const get = await client();
   const query = new URLSearchParams({
     valueRenderOption: "UNFORMATTED_VALUE",
@@ -77,7 +82,8 @@ export async function readTargets(): Promise<Rows> {
   });
   for (const range of TARGET_RANGES)
     query.append("ranges", `'${sheetNames.target}'!${range}`);
-  const result = await get("/values:batchGet?" + query);
+  result = await get("/values:batchGet?" + query);
+  }
   const rows: Rows = Array.from({ length: 79 }, () => []);
   for (let i = 0; i < TARGET_RANGES.length; i++) {
     const range = TARGET_RANGES[i],
