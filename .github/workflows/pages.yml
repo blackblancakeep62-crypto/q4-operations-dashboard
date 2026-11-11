@@ -5,7 +5,8 @@ on:
   workflow_dispatch:
   schedule:
     # 09:17 and 17:17 Asia/Shanghai; avoid the busy top of the hour.
-    - cron: '17 1,9 * * *'
+    - cron: '17 1 * * *'
+    - cron: '17 9 * * *'
 permissions:
   contents: read
 concurrency:
@@ -68,6 +69,7 @@ jobs:
           path: .pages-build/out
       - name: Summarize synchronization
         run: |
+          echo 'Trigger event: ${{ github.event_name }}; schedule: ${{ github.event.schedule }}; branch: ${{ github.ref_name }}.' >> "$GITHUB_STEP_SUMMARY"
           echo 'Google Sheets synchronized: ${{ steps.sync.outputs.synced }}. On failure the last successful data remains published.' >> "$GITHUB_STEP_SUMMARY"
   deploy:
     needs: build
