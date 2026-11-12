@@ -16,6 +16,12 @@
 
 ### GAS设置（无需Google Cloud控制台）
 
+定时迁移：新增独立 `gas/Scheduler.gs`，不覆盖Code.gs，也不需要更换Web App部署或Secrets。GitHub Fine-grained PAT仅选择本仓库、授予Actions Read and write（Metadata只读默认），设置有效期；令牌只存GAS脚本属性`Q4_GITHUB_PAT`。同一个管理账号负责安装两个触发器，避免多人各自安装。
+
+顺序：运行`testGitHubDispatch`并完成外部请求授权 → Actions出现`gas_test`且同步、部署均成功 → 将该运行URL末尾数字保存为脚本属性`Q4_GAS_TEST_RUN_ID` → 从main的pages.yml移除整个schedule段（保留workflow_dispatch和push）→ 运行`installQ4Timers`并授权管理触发器。安装器会拒绝未经测试、测试失败或原生cron仍在的切换，重复安装仅替换自己的两个触发器。**当前仓库保留cron，待真实GAS调用测试成功后移除。**
+
+状态：运行`showQ4SchedulerStatus`查看发送结果；HTTP接受不等于同步成功，必须到Actions核对`gas_timer`、日期AM/PM、`synchronized: true`及部署成功。自动任务使用脚本锁和日期时段记录防重复；网络异常标记`failed_or_unknown`且不自动重发，先查Actions记录，确实漏跑再用原有Run workflow补跑。`removeQ4Timers`停用GAS调度，不修改数据接口。PAT到期前更新脚本属性。每天北京时间09:17、17:17附近，GAS允许约±15分钟偏移且可能进一步延迟，不保证准点。
+
 1. 将 `gas/Code.gs` 全文复制到Apps Script的Code.gs并保存。项目设置 → 脚本属性新增 `Q4_SPREADSHEET_ID`，填原表链接中 `/d/` 与 `/edit` 之间的ID。
 2. 在编辑器选择 `authorizeReader`，点击运行并由表格可访问账号完成Google授权。该函数只读取T11，并在未配置时生成64字符共享密钥。返回项目设置，复制脚本属性 `Q4_SHARED_KEY`；不将密钥发送到聊天或写进代码。
 3. 部署 → 新部署 → 类型“网页应用”：执行身份选择“我”；访问权限选择“任何人”（无需登录），由代码里的密钥校验保护读取。授权界面由你本人确认；若公司账号禁用匿名网页应用，需要管理员允许。不要选择仅Google账号可访问，否则Actions会收到登录页面。

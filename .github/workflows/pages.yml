@@ -1,8 +1,19 @@
 name: Sync and deploy Q4 dashboard
+run-name: Q4 · ${{ inputs.source || github.event_name }} · ${{ inputs.slot || github.ref_name }}
 on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      source:
+        description: Trigger source (leave manual for Run workflow)
+        type: choice
+        options: [manual, gas_test, gas_timer]
+        default: manual
+      slot:
+        description: GAS date/time slot (leave empty for manual)
+        type: string
+        default: ''
   schedule:
     # 09:17 and 17:17 Asia/Shanghai; avoid the busy top of the hour.
     - cron: '17 1 * * *'
@@ -68,9 +79,18 @@ jobs:
         with:
           path: .pages-build/out
       - name: Summarize synchronization
+        env:
+          TRIGGER_SOURCE: ${{ inputs.source || github.event_name }}
+          TRIGGER_SLOT: ${{ inputs.slot }}
         run: |
+          printf 'Source: %s; slot: %s.\n' "$TRIGGER_SOURCE" "$TRIGGER_SLOT" >> "$GITHUB_STEP_SUMMARY"
           echo 'Trigger event: ${{ github.event_name }}; schedule: ${{ github.event.schedule }}; branch: ${{ github.ref_name }}.' >> "$GITHUB_STEP_SUMMARY"
           echo 'Google Sheets synchronized: ${{ steps.sync.outputs.synced }}. On failure the last successful data remains published.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Require real sync for GAS migration test
+        if: inputs.source == 'gas_test' && steps.sync.outputs.synced != 'true'
+        run: |
+          echo 'GAS migration test requires synchronized=true; keep the existing schedule until configuration is corrected.'
+          exit 1
   deploy:
     needs: build
     runs-on: ubuntu-latest
