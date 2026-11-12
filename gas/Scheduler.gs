@@ -6,9 +6,29 @@ const Q4_SCHED_ZONE = 'Asia/Shanghai';
 
 function q4ScheduleProperties_() { return PropertiesService.getScriptProperties(); }
 
+// Sanitize before truncating. Never log the request, raw exception object or stack.
+function q4SafeDiagnostic_(value, token) {
+  let text = String(value == null ? '' : value);
+  [token, token && token.trim()].forEach(function (secret) {
+    if (!secret) return;
+    [secret, encodeURIComponent(secret), JSON.stringify(secret).slice(1, -1)].forEach(function (variant) {
+      text = text.split(variant).join('[REDACTED]');
+    });
+  });
+  text = text
+    .replace(/github_pat_[A-Za-z0-9_]+|gh[pousr]_[A-Za-z0-9_]+/g, '[REDACTED]')
+    .replace(/((?:proxy-)?authorization["']?\s*[:=]\s*)(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\r\n,}]+)/gi, '$1[REDACTED]')
+    .replace(/\b(Bearer|Basic)\s+[^\s"',;}]+/gi, '$1 [REDACTED]')
+    .replace(/((?:access_token|refresh_token|client_secret|password|api_key|Q4_GITHUB_PAT)["']?\s*[:=]\s*)(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s,}&]+)/gi, '$1[REDACTED]')
+    .replace(/[\u0000-\u001f\u007f]/g, ' ');
+  return text.slice(0, 1200);
+}
+
 function q4GitHubRequest_(suffix, method, payload) {
   const token = q4ScheduleProperties_().getProperty('Q4_GITHUB_PAT');
   if (!token) throw new Error('Set Q4_GITHUB_PAT in Script Properties first.');
+  if (/[\r\n]/.test(token) || token !== token.trim())
+    throw new Error('Q4_GITHUB_PAT contains a line break or surrounding whitespace; correct the existing property, do not create a new token.');
   let response;
   try {
     response = UrlFetchApp.fetch('https://api.github.com/repos/' + Q4_SCHED_REPO + suffix, {
@@ -21,9 +41,19 @@ function q4GitHubRequest_(suffix, method, payload) {
       ...(payload ? {payload: JSON.stringify(payload)} : {}),
       muteHttpExceptions: true, followRedirects: false
     });
-  } catch (_) { throw new Error('GitHub request failed; response unknown. Check Actions before retrying.'); }
+  } catch (cause) {
+    const type = q4SafeDiagnostic_(cause && cause.name || 'UnknownError', token);
+    const reason = q4SafeDiagnostic_(cause && cause.message || cause, token);
+    throw new Error('GitHub request exception [UrlFetchApp.fetch] type=' + type +
+      '; reason=' + reason + '; HTTP response unavailable. Check Actions before retrying.');
+  }
   const status = response.getResponseCode();
-  if (status < 200 || status >= 300) throw new Error('GitHub HTTP ' + status + '; check PAT permission/expiry and workflow.');
+  if (status < 200 || status >= 300) {
+    let reason = 'No JSON error message';
+    try { reason = JSON.parse(response.getContentText()).message || reason; } catch (_) {}
+    throw new Error('GitHub HTTP ' + status + '; reason=' + q4SafeDiagnostic_(reason, token) +
+      '; check existing PAT permission/expiry and workflow.');
+  }
   return response;
 }
 
