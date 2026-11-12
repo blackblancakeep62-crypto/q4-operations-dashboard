@@ -14,10 +14,6 @@ on:
         description: GAS date/time slot (leave empty for manual)
         type: string
         default: ''
-  schedule:
-    # 09:17 and 17:17 Asia/Shanghai; avoid the busy top of the hour.
-    - cron: '17 1 * * *'
-    - cron: '17 9 * * *'
 permissions:
   contents: read
 concurrency:
