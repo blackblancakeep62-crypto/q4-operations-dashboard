@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import { publicData } from "../lib/public-data";
+import type { Snapshot } from "../lib/model";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { parseRankings, growthPercent } from "../lib/rankings";
@@ -12,27 +15,104 @@ test("completion sorts valid results only, without applying ERP factors", () => 
   rows[61] = ["C", null, null, null, null, null, 0.71];
   rows[62] = ["D", null, null, null, null, null, 0.4];
   rows[63] = ["无", null, null, null, null, null, 1];
-  assert.deepEqual(parseRankings(rows).completion, [
+  assert.deepEqual(parseRankings(rows).completion.slice(0, 4), [
     { rank: 1, name: "B", value: 0.9025 },
     { rank: 2, name: "A", value: 0.83 },
     { rank: 3, name: "C", value: 0.71 },
+    { rank: 4, name: "D", value: 0.4 },
   ]);
+  assert.equal(parseRankings(rows).completion.length, 9);
+  assert.ok(
+    parseRankings(rows)
+      .completion.slice(4)
+      .every((p) => p.rank === null && p.value === null),
+  );
 });
 test("growth rankings use H/I independently, reject invalid values and preserve signs", () => {
-  const rows: Rows = Array.from({length:79}, () => []);
+  const rows: Rows = Array.from({ length: 79 }, () => []);
   const inputs = [
-    ["周东", 0.406, 1.144], ["陈嵩涛", 0.464, 2.824], ["李欣淇", "28.6%", "146.4%"],
-    ["Other", -0.2, -0.3], ["Empty", "", null], ["Error", "#DIV/0!", "#VALUE!"],
-    ["Invalid", "abc", Infinity], ["无", 99, 99],
+    ["周东", 0.406, 1.144],
+    ["陈嵩涛", 0.464, 2.824],
+    ["李欣淇", "28.6%", "146.4%"],
+    ["Other", -0.2, -0.3],
+    ["Empty", "", null],
+    ["Error", "#DIV/0!", "#VALUE!"],
+    ["Invalid", "abc", Infinity],
+    ["无", 99, 99],
   ];
-  inputs.forEach(([name,sales,profit],i) => {rows[54+i]=[name,null,null,null,null,null,0.5,sales,profit] as Rows[number];});
-  const r=parseRankings(rows);
-  assert.deepEqual(r.salesGrowth?.map(p=>[p.name,growthPercent(p.value)]), [["陈嵩涛","+46.4%"],["周东","+40.6%"],["李欣淇","+28.6%"]]);
-  assert.deepEqual(r.profitGrowth?.map(p=>[p.name,growthPercent(p.value)]), [["陈嵩涛","+282.4%"],["李欣淇","+146.4%"],["周东","+114.4%"]]);
-  assert.deepEqual(parseRankings([]), {completion:[],salesGrowth:[],profitGrowth:[]});
+  inputs.forEach(([name, sales, profit], i) => {
+    rows[54 + i] = [
+      name,
+      null,
+      null,
+      null,
+      null,
+      null,
+      0.5,
+      sales,
+      profit,
+    ] as Rows[number];
+  });
+  const r = parseRankings(rows);
+  assert.deepEqual(
+    r.salesGrowth?.slice(0, 3).map((p) => [p.name, growthPercent(p.value!)]),
+    [
+      ["陈嵩涛", "+46.4%"],
+      ["周东", "+40.6%"],
+      ["李欣淇", "+28.6%"],
+    ],
+  );
+  assert.deepEqual(
+    r.profitGrowth?.slice(0, 3).map((p) => [p.name, growthPercent(p.value!)]),
+    [
+      ["陈嵩涛", "+282.4%"],
+      ["李欣淇", "+146.4%"],
+      ["周东", "+114.4%"],
+    ],
+  );
+  assert.deepEqual(parseRankings([]), {
+    completion: [],
+    salesGrowth: [],
+    profitGrowth: [],
+  });
   assert.equal(growthPercent(-0.123), "-12.3%");
   assert.equal(growthPercent(0), "+0.0%");
-  rows[54]=["New person",null,null,null,null,null,0.5,-0.01,-0.02];
-  assert.equal(parseRankings(rows.slice(0,55)).salesGrowth?.[0].name,"New person");
-  assert.equal(parseRankings(rows.slice(0,55)).salesGrowth?.[0].value,-0.01);
+  rows[54] = ["New person", null, null, null, null, null, 0.5, -0.01, -0.02];
+  assert.equal(
+    parseRankings(rows.slice(0, 55)).salesGrowth?.[0].name,
+    "New person",
+  );
+  assert.equal(parseRankings(rows.slice(0, 55)).salesGrowth?.[0].value, -0.01);
+});
+
+test("all sixteen source rows survive parsing and publication", () => {
+  const rows: Rows = Array.from({ length: 74 }, () => []);
+  for (let i = 0; i < 16; i++)
+    rows[54 + i] = [
+      `Person ${i}`,
+      null,
+      null,
+      null,
+      null,
+      null,
+      i === 0 ? "无" : i / 10,
+      -i / 10,
+      i / 20,
+    ];
+  rows[70] = ["Outside range", null, null, null, null, null, 99, 99, 99];
+  const rankings = parseRankings(rows);
+  for (const entries of Object.values(rankings))
+    assert.equal(entries.length, 16);
+  assert.deepEqual(rankings.completion[15], {
+    rank: null,
+    name: "Person 0",
+    value: null,
+  });
+  assert.equal(rankings.salesGrowth?.[15].value, -1.5);
+  assert.equal(rankings.profitGrowth?.[0].name, "Person 15");
+  const snapshot = JSON.parse(
+    fs.readFileSync("pages-seed/snapshot-v2.json", "utf8"),
+  ) as Snapshot;
+  snapshot.rankings = rankings;
+  assert.deepEqual(publicData(snapshot).rankings, rankings);
 });

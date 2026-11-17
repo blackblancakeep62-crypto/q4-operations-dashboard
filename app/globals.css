@@ -1,5 +1,6 @@
 @import "tailwindcss";
 .personnel-rankings {
+  grid-auto-rows: 1fr;
   grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
 }
 .personnel-rankings .rank {
@@ -32,6 +33,13 @@
 }
 .personnel-rankings .rank-winner span {
   font-weight: 700;
+}
+.personnel-rankings .rank-compact {
+  padding: 10px 0;
+  font-size: 13px;
+}
+.personnel-rankings .rank-compact strong {
+  font-weight: 500;
 }
 @media (max-width: 900px) {
   .personnel-rankings {

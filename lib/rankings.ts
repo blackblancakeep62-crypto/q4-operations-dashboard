@@ -1,5 +1,9 @@
 import type { Rows } from "./model";
-export type RankingEntry = { rank: number; name: string; value: number };
+export type RankingEntry = {
+  rank: number | null;
+  name: string;
+  value: number | null;
+};
 export type PersonnelRankings = {
   completion: RankingEntry[];
   salesGrowth?: RankingEntry[];
@@ -17,16 +21,28 @@ function name(cell: unknown) {
   return typeof cell === "string" && cell.trim() !== "无" ? cell.trim() : "";
 }
 export function parseRankings(rows: Rows): PersonnelRankings {
-  const ranked = (column: number) => rows
-    .slice(54, 74)
-    .flatMap((r) => {
+  const ranked = (column: number): RankingEntry[] => {
+    const people = rows.slice(54, 70).flatMap((r) => {
       const n = name(r[0]),
         v = value(r[column]);
-      return n && v !== null ? [{ rank: 0, name: n, value: v }] : [];
-    })
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 3)
-    .map((r, i) => ({ ...r, rank: i + 1 }));
-  return { completion: ranked(6), salesGrowth: ranked(7), profitGrowth: ranked(8) };
+      return n ? [{ name: n, value: v }] : [];
+    });
+    const valid = people
+      .filter((p): p is { name: string; value: number } => p.value !== null)
+      .sort((a, b) => b.value - a.value)
+      .map((r, i) => ({ ...r, rank: i + 1 }));
+    return [
+      ...valid,
+      ...people
+        .filter((p) => p.value === null)
+        .map((p) => ({ ...p, rank: null })),
+    ];
+  };
+  return {
+    completion: ranked(6),
+    salesGrowth: ranked(7),
+    profitGrowth: ranked(8),
+  };
 }
-export const growthPercent = (n: number) => `${n >= 0 ? "+" : ""}${(n * 100).toFixed(1)}%`;
+export const growthPercent = (n: number) =>
+  `${n >= 0 ? "+" : ""}${(n * 100).toFixed(1)}%`;

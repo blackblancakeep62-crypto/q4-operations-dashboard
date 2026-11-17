@@ -652,21 +652,21 @@ export default function Dashboard() {
                 {[
                   {
                     key: "completion",
-                    title: "销售目标完成率 Top 3",
+                    title: "销售目标完成率排名",
                     period: "10—11月 · 准目标完成率",
                     entries: data.rankings?.completion ?? [],
                     percent: true,
                   },
                   {
                     key: "salesGrowth",
-                    title: "11月销售额增长率 Top 3",
+                    title: "11月销售额增长率排名",
                     period: "11月对比10月",
                     entries: data.rankings?.salesGrowth ?? [],
                     percent: false,
                   },
                   {
                     key: "profitGrowth",
-                    title: "11月利润增长率 Top 3",
+                    title: "11月利润增长率排名",
                     period: "11月对比10月",
                     entries: data.rankings?.profitGrowth ?? [],
                     percent: false,
@@ -677,24 +677,25 @@ export default function Dashboard() {
                     key={board.key}
                     aria-label={board.title}
                   >
-                    <span className="eyebrow">TOP 3 / OPERATORS</span>
+                    <span className="eyebrow">TOP 3 HIGHLIGHTS</span>
                     <h2>{board.title}</h2>
                     <p>{board.period}</p>
-                    {[1, 2, 3].map((rank) => {
-                      const person = board.entries.find((p) => p.rank === rank);
+                    {board.entries.length === 0 && <p>暂无数据</p>}
+                    {board.entries.map((person, index) => {
+                      const rank = person.rank;
                       return (
                         <div
-                          className={`rank ${rank === 1 ? "rank-winner" : ""}`}
-                          key={rank}
+                          className={`rank ${rank === 1 ? "rank-winner" : rank !== null && rank <= 3 ? "rank-highlight" : "rank-compact"}`}
+                          key={`${person.name}-${index}`}
                         >
-                          <b className="rank-number">{rank}</b>
-                          <strong>{person?.name ?? "暂无数据"}</strong>
+                          <b className="rank-number">{rank ?? "—"}</b>
+                          <strong>{person.name}</strong>
                           <span>
-                            {person
+                            {person.value !== null
                               ? board.percent
                                 ? pct(person.value)
                                 : growthPercent(person.value)
-                              : "—"}
+                              : board.percent ? "未设目标" : "暂无数据"}
                           </span>
                         </div>
                       );

@@ -15,7 +15,7 @@ export function publicData(s: Snapshot): DashboardData {
   })) as DashboardData["targets"];
   const validDate = (d: string, year: string) => new RegExp(`^${year}-(10|11|12)-\\d{2}$`).test(d);
   const rankings = s.rankings && Object.fromEntries(["completion", "salesGrowth", "profitGrowth"].map((key) => [key,
-    (s.rankings![key as keyof typeof s.rankings] ?? []).slice(0, 3).map(({rank, name, value}) => ({rank, name, value})),
+    (s.rankings![key as keyof typeof s.rankings] ?? []).map(({rank, name, value}) => ({rank, name, value})),
   ])) as DashboardData["rankings"];
   return {
     version: 2, fetchedAt: s.fetchedAt, cutoff: s.cutoff, targets, rankings,
