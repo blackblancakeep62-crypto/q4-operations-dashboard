@@ -5,15 +5,39 @@
 }
 .personnel-rankings .rank {
   gap: 10px;
-  padding: 20px 0;
+  padding: 20px 12px;
 }
 .personnel-rankings .rank span {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 .personnel-rankings .rank-number {
   width: 24px;
+  flex: 0 0 24px;
+  font-variant-numeric: tabular-nums;
   text-align: center;
+}
+.personnel-rankings .ranking-period {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  min-height: 36px;
+  align-content: flex-start;
+}
+.personnel-rankings .ranking-negative-count {
+  color: #697b7b;
+  font-variant-numeric: tabular-nums;
+}
+.personnel-rankings .rank .growth-positive { color: #168a73; }
+.personnel-rankings .rank .growth-negative { color: var(--red); }
+.personnel-rankings .rank .growth-zero { color: #819093; }
+.personnel-rankings .rank-highlight {
+  background: #f7faf8;
+  font-weight: 600;
+}
+.personnel-rankings .rank-highlight + .rank-compact {
+  border-top: 2px solid #e3ece7;
 }
 .personnel-rankings .rank-winner {
   margin-top: 20px;
@@ -35,7 +59,7 @@
   font-weight: 700;
 }
 .personnel-rankings .rank-compact {
-  padding: 10px 0;
+  padding: 10px 12px;
   font-size: 13px;
 }
 .personnel-rankings .rank-compact strong {

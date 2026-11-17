@@ -679,7 +679,15 @@ export default function Dashboard() {
                   >
                     <span className="eyebrow">TOP 3 HIGHLIGHTS</span>
                     <h2>{board.title}</h2>
-                    <p>{board.period}</p>
+                    <p className="ranking-period">
+                      <span>{board.period}</span>
+                      {!board.percent && (
+                        <span className="ranking-negative-count">
+                          负增长 {board.entries.filter((p) => p.value !== null && Number.isFinite(p.value) && p.value < 0).length}
+                          {" / "}{board.entries.filter((p) => p.value !== null && Number.isFinite(p.value)).length}人
+                        </span>
+                      )}
+                    </p>
                     {board.entries.length === 0 && <p>暂无数据</p>}
                     {board.entries.map((person, index) => {
                       const rank = person.rank;
@@ -690,7 +698,9 @@ export default function Dashboard() {
                         >
                           <b className="rank-number">{rank ?? "—"}</b>
                           <strong>{person.name}</strong>
-                          <span>
+                          <span className={!board.percent && person.value !== null && Number.isFinite(person.value)
+                            ? person.value > 0 ? "growth-positive" : person.value < 0 ? "growth-negative" : "growth-zero"
+                            : undefined}>
                             {person.value !== null
                               ? board.percent
                                 ? pct(person.value)
