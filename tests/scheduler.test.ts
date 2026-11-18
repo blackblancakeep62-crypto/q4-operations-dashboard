@@ -23,11 +23,12 @@ function setup() {
     }},
     ScriptApp:{getProjectTriggers:()=>triggers,deleteTrigger:(t:any)=>{triggers=triggers.filter(x=>x!==t);},newTrigger:(name:string)=>{
       const spec:any={handler:name}; const builder:any={};
-      for(const method of ['timeBased','atHour','nearMinute','everyDays','inTimezone']) builder[method]=(v:any)=>{spec[method]=v;return builder;};
+      for(const method of ['timeBased','atHour','nearMinute','everyDays','everyHours','inTimezone']) builder[method]=(v:any)=>{spec[method]=v;return builder;};
       builder.create=()=>triggers.push({...spec,getHandlerFunction:()=>name});return builder;
     }},
   });
   vm.runInContext(fs.readFileSync('gas/Scheduler.gs','utf8'),context);
+  vm.runInContext(fs.readFileSync('gas/Television.gs','utf8'),context);
   return {context,props,calls,logs,triggers:()=>triggers,setCode:(v:number)=>{code=v;},disableNative:()=>{native=false;}};
 }
 test('GAS dispatch uses header token, correct workflow/source, and deduplicates daily slots',()=>{
@@ -38,6 +39,22 @@ test('GAS dispatch uses header token, correct workflow/source, and deduplicates 
   assert.equal(request.options.headers.Authorization,'Bearer private-test-token');
   assert.deepEqual(JSON.parse(request.options.payload),{ref:'main',inputs:{source:'gas_timer',slot:'2026-11-12-AM'}});
   assert.equal(f.logs.join('').includes('private-test-token'),false);
+});
+
+test('TV hourly trigger installation and dispatch preserve both daily timers and existing PAT',()=>{
+  const f=setup();
+  f.context.testGitHubDispatch(); f.props.Q4_GAS_TEST_RUN_ID='123'; f.disableNative(); f.context.installQ4Timers();
+  f.context.installTvHourlyTimer(); f.context.installTvHourlyTimer();
+  assert.equal(f.triggers().filter(t=>t.handler==='q4TvHourlyTimer').length,1);
+  assert.equal(f.triggers().filter(t=>t.everyDays===1).length,2);
+  const before=f.calls.length;
+  f.context.q4TvHourlyTimer(); f.context.q4TvHourlyTimer();
+  assert.equal(f.calls.length,before+1);
+  assert.equal(JSON.parse(f.calls.at(-1)!.options.payload).inputs.source,'tv_timer');
+  assert.equal(f.calls.at(-1)!.options.headers.Authorization,'Bearer private-test-token');
+  f.context.removeTvHourlyTimer();
+  assert.equal(f.triggers().filter(t=>t.everyDays===1).length,2);
+  assert.equal(f.props.Q4_TIMERS_ENABLED,'true');
 });
 test('failed or uncertain dispatch is recorded without automatic duplicate retries',()=>{
   const f=setup();f.setCode(401);

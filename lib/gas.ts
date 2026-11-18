@@ -1,6 +1,6 @@
 import type { Rows } from "./model";
 
-export async function readGasTargets(ranges: string[]): Promise<{valueRanges: {values: Rows}[]}> {
+export async function readGasTargets(ranges: string[], action: "readTargets" | "readTv" = "readTargets"): Promise<{valueRanges: {values: Rows}[]}> {
   const key = process.env.GAS_SHARED_KEY;
   let url: URL;
   try { url = new URL(process.env.GAS_WEB_APP_URL || ""); } catch { throw Error("未配置有效的 GAS_WEB_APP_URL"); }
@@ -11,7 +11,7 @@ export async function readGasTargets(ranges: string[]): Promise<{valueRanges: {v
   try {
     let response = await fetch(url.toString(), {
       method: "POST", headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({action: "readTargets", key}), redirect: "manual",
+      body: JSON.stringify({action, key}), redirect: "manual",
       signal: AbortSignal.timeout(90000), cache: "no-store",
     });
     // GAS ContentService redirects to a one-time response URL. Never forward the key.

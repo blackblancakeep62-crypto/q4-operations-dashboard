@@ -8,7 +8,7 @@ on:
       source:
         description: Trigger source (leave manual for Run workflow)
         type: choice
-        options: [manual, gas_test, gas_timer]
+        options: [manual, gas_test, gas_timer, tv_test, tv_timer]
         default: manual
       slot:
         description: GAS date/time slot (leave empty for manual)
@@ -17,16 +17,21 @@ on:
 permissions:
   contents: read
 concurrency:
+  # One lock covers state restore, writes, build AND deploy for both sync sources.
   group: q4-pages-sync
   cancel-in-progress: false
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      tv_synced: ${{ steps.tv.outputs.synced }}
     timeout-minutes: 20
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: main
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -45,12 +50,21 @@ jobs:
           fi
       - name: Synchronize formula results (read-only)
         id: sync
+        if: inputs.source != 'tv_timer' && inputs.source != 'tv_test'
         run: npm run sync:pages
         env:
           SHEETS_TRANSPORT: gas
           GAS_WEB_APP_URL: ${{ secrets.GAS_WEB_APP_URL }}
           GAS_SHARED_KEY: ${{ secrets.GAS_SHARED_KEY }}
+      - name: Synchronize television formula results (45 cells only)
+        id: tv
+        if: inputs.source == 'tv_timer' || inputs.source == 'tv_test'
+        run: npm run sync:tv
+        env:
+          GAS_WEB_APP_URL: ${{ secrets.GAS_WEB_APP_URL }}
+          GAS_SHARED_KEY: ${{ secrets.GAS_SHARED_KEY }}
       - name: Persist only allowlisted aggregates and snapshots
+        if: inputs.source != 'tv_timer' && inputs.source != 'tv_test'
         shell: bash
         run: |
           if [ ! -d .pages-state ]; then
@@ -64,6 +78,22 @@ jobs:
           git -C .pages-state add -- '*.json'
           if ! git -C .pages-state diff --cached --quiet; then
             git -C .pages-state commit -m 'Update dashboard aggregate snapshots'
+            git -C .pages-state push origin HEAD:data-state
+          fi
+      - name: Persist television snapshot only (retain all dashboard state)
+        if: inputs.source == 'tv_timer' || inputs.source == 'tv_test'
+        shell: bash
+        run: |
+          if [ ! -d .pages-state ]; then
+            echo 'Durable dashboard data-state branch is required before TV synchronization.'
+            exit 1
+          fi
+          cp .private/tv-snapshot-v1.json .pages-state/tv-snapshot-v1.json
+          git -C .pages-state config user.name 'github-actions[bot]'
+          git -C .pages-state config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -C .pages-state add -- tv-snapshot-v1.json
+          if ! git -C .pages-state diff --cached --quiet; then
+            git -C .pages-state commit -m 'Update television snapshot'
             git -C .pages-state push origin HEAD:data-state
           fi
       - run: npm test
@@ -82,6 +112,7 @@ jobs:
           printf 'Source: %s; slot: %s.\n' "$TRIGGER_SOURCE" "$TRIGGER_SLOT" >> "$GITHUB_STEP_SUMMARY"
           echo 'Trigger event: ${{ github.event_name }}; schedule: ${{ github.event.schedule }}; branch: ${{ github.ref_name }}.' >> "$GITHUB_STEP_SUMMARY"
           echo 'Google Sheets synchronized: ${{ steps.sync.outputs.synced }}. On failure the last successful data remains published.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'TV synchronized: ${{ steps.tv.outputs.synced }}. TV jobs never run dashboard/ERP sync.' >> "$GITHUB_STEP_SUMMARY"
       - name: Require real sync for GAS migration test
         if: inputs.source == 'gas_test' && steps.sync.outputs.synced != 'true'
         run: |
@@ -99,3 +130,12 @@ jobs:
     steps:
       - uses: actions/deploy-pages@v4
         id: deployment
+  verify-tv-test:
+    if: inputs.source == 'tv_test'
+    needs: [build, deploy]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require successful television synchronization
+        env:
+          TV_SYNCED: ${{ needs.build.outputs.tv_synced }}
+        run: test "$TV_SYNCED" = true

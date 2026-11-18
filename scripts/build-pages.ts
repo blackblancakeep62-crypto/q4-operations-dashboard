@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { publicData } from "../lib/public-data";
+import { emptyTv, validateTv } from "../lib/tv";
 const root = process.cwd(), stage = path.join(root, ".pages-build");
 async function main() {
   // Isolated staging leaves local API/auth and normal development intact.
@@ -20,6 +21,9 @@ async function main() {
   const status = await fs.readFile(path.join(state, "pages-sync-status.json"), "utf8").then(JSON.parse).catch(() => null);
   const data = publicData({...snapshot, stale: status?.ok === false || snapshot.stale});
   await fs.writeFile(path.join(stage, "public", "dashboard.json"), JSON.stringify(data));
+  const tv = await fs.readFile(path.join(state, "tv-snapshot-v1.json"), "utf8").then(JSON.parse).then(validateTv)
+    .catch(async () => fs.readFile(path.join(root, "pages-seed", "tv-snapshot-v1.json"), "utf8").then(JSON.parse).then(validateTv).catch(() => emptyTv()));
+  await fs.writeFile(path.join(stage, "public", "tv-snapshot.json"), JSON.stringify(tv));
   const basePath = process.env.PAGES_BASE_PATH || "";
   if (basePath && !/^\/[A-Za-z0-9_.-]+$/.test(basePath)) throw Error("Invalid Pages base path");
   const built = spawnSync(process.execPath, [path.join(root, "node_modules/next/dist/bin/next"), "build", stage], {

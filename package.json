@@ -7,6 +7,7 @@
     "build": "next build",
     "build:pages": "tsx scripts/build-pages.ts",
     "sync:pages": "tsx scripts/sync-pages.ts",
+    "sync:tv": "tsx scripts/sync-tv.ts",
     "start": "next start --hostname 127.0.0.1",
     "test": "tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit"

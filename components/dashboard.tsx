@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   ResponsiveContainer,
@@ -165,6 +166,7 @@ export default function Dashboard() {
               <span>·</span> 最近成功同步 {data ? time(data.fetchedAt) : "—"}
             </p>
           </div>
+          <Link href="/tv/" target="_blank" rel="noopener noreferrer" className="refresh">电视投屏 ↗</Link>
           <button
             className="refresh"
             onClick={() => load(true)}
