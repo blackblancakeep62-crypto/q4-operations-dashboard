@@ -7,6 +7,7 @@ import vm from "node:vm";
 import {spawnSync} from "node:child_process";
 import {emptyTv, TV_SCOPES, tvFromRanges, tvPercent, tvNumber, tvDifference, tvDelayed, validateTv, TV_POLL_MS} from "../lib/tv";
 const fixture = () => [{values: TV_SCOPES.map(name => [name, .42, .41, .38, .39, .34])}, {values: TV_SCOPES.map(name => [name, "待更新", "#DIV/0!"])}];
+const fixtureV2 = (progress: unknown = .0191, day: unknown = 1) => [...fixture(), {values: [[progress, day]]}];
 test("TV preserves formula results, real zero, overachievement and missing values", () => {
   const input = fixture();
   input[0].values[1][2] = 0; input[0].values[2][2] = 1.23;
@@ -21,7 +22,19 @@ test("TV preserves formula results, real zero, overachievement and missing value
   assert.equal(tvDifference(.41, .42), "-1.00 pp");
   assert.equal(tvDifference(null, .42), "暂无数据");
   assert.deepEqual(validateTv({...snapshot, secret: "must-strip"}), snapshot);
+  const legacy = {...snapshot} as Record<string, unknown>; delete legacy.timing;
+  assert.deepEqual(validateTv(legacy).timing, {progress: null, day: null});
   input[0].values.reverse(); assert.throws(() => tvFromRanges(input));
+});
+test("TV V2 uses D12 progress and E12 day directly, including boundaries", () => {
+  const current = tvFromRanges(fixtureV2());
+  assert.equal(tvPercent(current.timing.progress), "1.91%");
+  assert.deepEqual(current.timing, {progress: .0191, day: 1});
+  assert.deepEqual(tvFromRanges(fixtureV2(0, 0)).timing, {progress: 0, day: 0});
+  assert.deepEqual(tvFromRanges(fixtureV2(.5, 6)).timing, {progress: .5, day: 6});
+  assert.deepEqual(tvFromRanges(fixtureV2(1, 12)).timing, {progress: 1, day: 12});
+  for (const value of ["", "待更新", "#N/A", null, -1, 1.01]) assert.equal(tvFromRanges(fixtureV2(value, 1)).timing.progress, null);
+  for (const value of ["", "待更新", null, -1, 1.5, 13]) assert.equal(tvFromRanges(fixtureV2(.5, value)).timing.day, null);
 });
 test("TV stale policy uses last success, failure flags, and a three-minute polling interval", () => {
   const data = tvFromRanges(fixture(), "2026-11-18T00:00:00Z");
@@ -34,7 +47,7 @@ test("TV stale policy uses last success, failure flags, and a three-minute polli
   assert.equal(tvDelayed(emptyTv(), start), true);
   assert.throws(() => validateTv({...data, fetchedAt: "invalid"}));
 });
-test("authenticated GAS television action reads exactly 45 cells and no ERP or dashboard ranges", () => {
+test("authenticated GAS keeps legacy TV ranges unchanged and V2 adds only D12:E12", () => {
   const accessed: string[] = [];
   let opened = 0;
   const key = "test-only-tv-shared-key-with-32-characters";
@@ -43,16 +56,20 @@ test("authenticated GAS television action reads exactly 45 cells and no ERP or d
     ContentService: {MimeType: {JSON: "json"}, createTextOutput: (text: string) => ({setMimeType: () => JSON.parse(text)})},
     SpreadsheetApp: {openById: (id: string) => {opened++; assert.equal(id, "19mz6u9eRFfN0zCsbtHxWJ6Ib0WN5lZwdMq2nftULcgI"); return {
       getSheetByName: (name: string) => {assert.equal(name, "电视投屏数据"); return {getSheetId: () => 118366337, getRange: (range: string) => {
-        accessed.push(range); return {getValues: () => fixture()[range === "A3:F7" ? 0 : 1].values};
+        accessed.push(range); return {getValues: () => range === "D12:E12" ? [[.0191, 1]] : fixture()[range === "A3:F7" ? 0 : 1].values};
       }};},
     };}},
   });
   vm.runInContext(fs.readFileSync("gas/Code.gs", "utf8") + fs.readFileSync("gas/Television.gs", "utf8"), context);
-  const call = (secret: string) => context.doPost({postData: {contents: JSON.stringify({key: secret, action: "readTv", range: "ERP!A:Z"})}});
+  const call = (secret: string, action = "readTv") => context.doPost({postData: {contents: JSON.stringify({key: secret, action, range: "ERP!A:Z"})}});
   assert.equal(call("wrong").ok, false); assert.equal(opened, 0);
   const result = call(key); assert.equal(result.ok, true);
   assert.deepEqual(accessed, ["A3:F7", "A12:C16"]);
   assert.equal(tvFromRanges(result.valueRanges).campaign[0].sales, null);
+  const v2 = call(key, "readTvV2");
+  assert.equal(v2.version, 2);
+  assert.deepEqual(accessed, ["A3:F7", "A12:C16", "A3:F7", "A12:C16", "D12:E12"]);
+  assert.deepEqual(tvFromRanges(v2.valueRanges).timing, {progress: .0191, day: 1});
 });
 test("failed TV sync retains last success and leaves dashboard bytes untouched", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "q4-tv-"));

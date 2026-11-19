@@ -27,6 +27,7 @@ function doPost(e) {
     const properties = PropertiesService.getScriptProperties();
     if (!request || !sameKey_(request.key, properties.getProperty('Q4_SHARED_KEY')))
       return json_({ok: false, error: 'UNAUTHORIZED'});
+    if (request.action === 'readTvV2') return q4ReadTvV2_();
     if (request.action === 'readTv') return q4ReadTv_();
     if (request.action !== 'readTargets') return json_({ok: false, error: 'INVALID_ACTION'});
     const id = properties.getProperty('Q4_SPREADSHEET_ID');

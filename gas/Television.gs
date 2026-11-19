@@ -9,6 +9,17 @@ function q4ReadTv_() {
   })});
 }
 
+// V2 adds formula results D12:E12. The legacy readTv ranges and response stay unchanged.
+function q4ReadTvV2_() {
+  const sheet = SpreadsheetApp.openById('19mz6u9eRFfN0zCsbtHxWJ6Ib0WN5lZwdMq2nftULcgI').getSheetByName('电视投屏数据');
+  if (!sheet || sheet.getSheetId() !== 118366337) return json_({ok: false, error: 'SHEET_UNAVAILABLE'});
+  return json_({ok: true, version: 2, valueRanges: ['A3:F7', 'A12:C16', 'D12:E12'].map(function(range) {
+    return {range: range, values: sheet.getRange(range).getValues().map(function(row) {
+      return row.map(function(value) { return typeof value === 'number' || typeof value === 'string' ? value : null; });
+    })};
+  })});
+}
+
 function testTvDispatch() { q4TvDispatch_('tv_test'); }
 function q4TvHourlyTimer() {
   if (q4ScheduleProperties_().getProperty('Q4_TV_ENABLED') === 'true') q4TvDispatch_('tv_timer');

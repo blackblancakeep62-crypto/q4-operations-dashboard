@@ -1,6 +1,6 @@
 import type { Rows } from "./model";
 
-export async function readGasTargets(ranges: string[], action: "readTargets" | "readTv" = "readTargets"): Promise<{valueRanges: {values: Rows}[]}> {
+export async function readGasTargets(ranges: string[], action: "readTargets" | "readTv" | "readTvV2" = "readTargets"): Promise<{valueRanges: {values: Rows}[]}> {
   const key = process.env.GAS_SHARED_KEY;
   let url: URL;
   try { url = new URL(process.env.GAS_WEB_APP_URL || ""); } catch { throw Error("未配置有效的 GAS_WEB_APP_URL"); }
@@ -25,7 +25,7 @@ export async function readGasTargets(ranges: string[], action: "readTargets" | "
     const body = await response.text();
     if (body.length > 1000000) throw Error("Response too large");
     const result = JSON.parse(body);
-    if (result.ok !== true || result.version !== 1 || !Array.isArray(result.valueRanges) || result.valueRanges.length !== ranges.length)
+    if (result.ok !== true || result.version !== (action === "readTvV2" ? 2 : 1) || !Array.isArray(result.valueRanges) || result.valueRanges.length !== ranges.length)
       throw Error("Invalid GAS response");
     for (let i = 0; i < ranges.length; i++) {
       const match = ranges[i].match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/)!;

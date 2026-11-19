@@ -1,11 +1,24 @@
 "use client";
 import { useEffect, useState } from "react";
+import type { CSSProperties } from "react";
 import { emptyTv, TV_POLL_MS, tvDelayed, tvDifference, tvPercent, validateTv, type TvSnapshot } from "@/lib/tv";
 
 function Progress({value}: {value: number | null}) {
   return <div className="tv-progress" aria-hidden="true"><i style={{width: `${value === null ? 0 : Math.min(100, Math.max(0, value * 100))}%`}} /></div>;
 }
 function Rate({value}: {value: number | null}) { return <strong className={value === null ? "tv-missing" : ""}>{tvPercent(value)}</strong>; }
+function SprintMascot() {
+  return <svg className="tv-mascot" viewBox="0 0 80 68" role="img" aria-label="跑步火柴人">
+    <g className="tv-mascot-bob">
+      <circle className="tv-mascot-head" cx="40" cy="11" r="8" />
+      <path className="tv-mascot-line tv-mascot-body" d="M40 20L38 39" />
+      <path className="tv-mascot-line tv-mascot-arm tv-mascot-arm-back" d="M39 25L27 33L19 28" />
+      <path className="tv-mascot-line tv-mascot-arm tv-mascot-arm-front" d="M39 25L51 31L59 23" />
+      <path className="tv-mascot-line tv-mascot-leg tv-mascot-leg-back" d="M38 39L28 51L18 49" />
+      <path className="tv-mascot-line tv-mascot-leg tv-mascot-leg-front" d="M38 39L49 51L61 54" />
+    </g>
+  </svg>;
+}
 export default function Television() {
   const [data, setData] = useState<TvSnapshot | null>(null);
   const [failed, setFailed] = useState(false);
@@ -60,9 +73,16 @@ export default function Television() {
           </div>)}
         </article>)}
       </section>
-      <section className="tv-card tv-campaign"><div className="tv-section-title"><h2>黑五网一战报</h2><span>全员冲刺</span></div>
+      <section className="tv-card tv-campaign"><div className="tv-section-title"><h2>黑五网一战报</h2></div>
         <div className="tv-campaign-head"><span>团队</span><span>销售额</span><span>利润</span></div>
         {snapshot.campaign.map(row => <article className="tv-campaign-row" key={row.name}><h3>{row.name === "公司总" ? "公司" : row.name}</h3>{[row.sales, row.profit].map((value, index) => <div key={index}>{value === null ? <span className="tv-pending">进度待更新</span> : <Rate value={value} />}</div>)}</article>)}
+        <div className={`tv-timing${snapshot.timing.progress === null ? " tv-timing-empty" : ""}`} style={{"--tv-timing": snapshot.timing.progress ?? 0} as CSSProperties}>
+          {snapshot.timing.progress === null ? <span className="tv-timing-pending">进度待更新</span> : <>
+            <div className="tv-timing-label"><span>时间进度 · {snapshot.timing.day === null ? "活动天数待更新" : `第 ${snapshot.timing.day}/12 天`}</span><strong>{tvPercent(snapshot.timing.progress)}</strong></div>
+            <div className="tv-mascot-track"><SprintMascot /></div>
+            <div className="tv-time-progress" role="progressbar" aria-label="黑五网一综合时间进度" aria-valuemin={0} aria-valuemax={100} aria-valuenow={snapshot.timing.progress * 100}><i /></div>
+          </>}
+        </div>
       </section>
     </div>
     <footer className="tv-footer"><span>{snapshot.fetchedAt ? `最近成功同步 ${new Date(snapshot.fetchedAt).toLocaleString("zh-CN", {timeZone: "Asia/Shanghai", hour12: false})}` : "暂无成功同步记录"}</span><strong role="status">{now > 0 && tvDelayed(data, now, failed) ? "数据更新延迟" : ""}</strong></footer>
