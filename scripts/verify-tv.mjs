@@ -40,6 +40,25 @@ async function checkBounds(label) {
   assert.deepEqual(bounds.outside,[],label);
   console.log(label, 'no page scroll, clipping or overflowing elements');
 }
+async function runnerFrame(ms) {
+  return page.evaluate(async time => {
+    const mascot=document.querySelector('.tv-mascot');
+    const animations=mascot.getAnimations({subtree:true});
+    for (const animation of animations) { animation.pause(); animation.currentTime=time; }
+    await new Promise(requestAnimationFrame);
+    const point=(selector,end=true) => {
+      const path=document.querySelector(selector);
+      const local=path.getPointAtLength(end ? path.getTotalLength() : 0);
+      const screen=new DOMPoint(local.x,local.y).matrixTransform(path.getScreenCTM());
+      return {x:screen.x,y:screen.y};
+    };
+    const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+    const frontHip=point('.tv-run-hip-front > path',false), backHip=point('.tv-run-hip-back > path',false);
+    const frontFoot=point('[data-foot="front"]'), backFoot=point('[data-foot="back"]');
+    return {time,frontFoot,backFoot,frontHand:point('[data-hand="front"]'),backHand:point('[data-hand="back"]'),
+      frontReach:distance(frontHip,frontFoot),backReach:distance(backHip,backFoot)};
+  },ms);
+}
 try {
   await page.route('**/tv-snapshot.json?*', route => route.fulfill({json:preview}));
   for (const [width,height] of [[1920,1080],[1366,768]]) {
@@ -52,9 +71,22 @@ try {
     assert.equal(await page.locator('.tv-mascot-head').count(),1);
     assert.equal(await page.locator('.tv-mascot text').count(),0);
     assert.equal(await page.locator('.tv-mascot-line').first().evaluate(el=>getComputedStyle(el).strokeLinecap),'round');
+    assert.equal(await page.locator('.tv-run-hip-front').evaluate(el=>getComputedStyle(el).transformBox),'view-box');
     const timingRatio=await page.locator('.tv-time-progress').evaluate(el=>el.firstElementChild.getBoundingClientRect().width/el.getBoundingClientRect().width);
     assert.ok(Math.abs(timingRatio-.0191)<.001);
     assert.notEqual(await page.locator('.tv-mascot-bob').evaluate(el=>getComputedStyle(el).animationName),'none');
+    if (width===1920) {
+      const frames=[];
+      for (const ms of [0,200,400]) {
+        frames.push(await runnerFrame(ms));
+        await page.locator('.tv-timing').screenshot({path:`.private/tv-qa/runner-${ms}ms.png`});
+      }
+      assert.ok(frames[0].frontFoot.x>frames[0].backFoot.x+8 && frames[2].frontFoot.x<frames[2].backFoot.x-8,'legs must exchange front/back positions');
+      assert.ok(frames[0].frontHand.x<frames[0].backHand.x-4 && frames[2].frontHand.x>frames[2].backHand.x+4,'arms must counter-swing against legs');
+      assert.ok(frames[0].frontReach>frames[0].backReach+2 && frames[2].frontReach<frames[2].backReach-2,'knees must alternate extension and recovery');
+      assert.ok(Math.abs(frames[0].frontFoot.x-frames[1].frontFoot.x)>3 && Math.abs(frames[1].frontFoot.x-frames[2].frontFoot.x)>3,'200ms frame must show continuous travel');
+      console.log('runner frames',JSON.stringify(frames));
+    }
     await page.emulateMedia({reducedMotion:'reduce'});
     assert.equal(await page.locator('.tv-mascot-bob').evaluate(el=>getComputedStyle(el).animationName),'none');
     await page.emulateMedia({reducedMotion:'no-preference'});

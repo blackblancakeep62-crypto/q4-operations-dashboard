@@ -62,20 +62,45 @@
 .tv-timing-label strong { color: var(--tv-red); font-size: min(1.45vw, 2.5vh); }
 .tv-mascot-track { --tv-mascot-width: min(3.6vw, 6.2vh); position: relative; min-height: 0; }
 .tv-mascot { position: absolute; z-index: 1; bottom: 0; left: calc(var(--tv-timing) * (100% - var(--tv-mascot-width))); width: var(--tv-mascot-width); height: auto; overflow: visible; filter: drop-shadow(0 .15vh .18vh #68202a33); }
-.tv-mascot-bob { transform-origin: 40px 36px; animation: tv-run-bob .58s ease-in-out infinite alternate; }
+.tv-mascot-bob { transform-origin: 36px 41px; animation: tv-run-bob .72s linear infinite; }
 .tv-mascot-head { fill: #fff8ed; stroke: #841c29; stroke-width: 4.5; }
 .tv-mascot-line { fill: none; stroke: #841c29; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
-.tv-mascot-arm, .tv-mascot-leg { transform-box: fill-box; transform-origin: center; }
-.tv-mascot-arm, .tv-mascot-leg { animation: tv-run-limb .58s ease-in-out infinite alternate; }
-.tv-mascot-arm-front, .tv-mascot-leg-back { animation-direction: alternate-reverse; }
+.tv-run-arm, .tv-run-elbow, .tv-run-hip, .tv-run-knee { transform-box: view-box; animation-duration: .72s; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
+.tv-run-arm { transform-origin: 40px 25px; }
+.tv-run-elbow { transform-origin: 40px 37px; }
+.tv-run-hip { transform-origin: 36px 41px; }
+.tv-run-knee { transform-origin: 36px 54px; }
+.tv-run-arm-front { animation-name: tv-run-arm-front; }
+.tv-run-arm-back { animation-name: tv-run-arm-back; }
+.tv-run-elbow-front { animation-name: tv-run-elbow-front; }
+.tv-run-elbow-back { animation-name: tv-run-elbow-back; }
+.tv-run-hip-front { animation-name: tv-run-hip-front; }
+.tv-run-hip-back { animation-name: tv-run-hip-back; }
+.tv-run-knee-front { animation-name: tv-run-knee-front; }
+.tv-run-knee-back { animation-name: tv-run-knee-back; }
 .tv-time-progress { height: .6vh; min-height: 4px; background: #eadccd; border-radius: 1vh; overflow: hidden; }
 .tv-time-progress i { display: block; width: calc(var(--tv-timing) * 100%); height: 100%; border-radius: inherit; background: linear-gradient(90deg, #b94442, #841c29); }
 .tv-timing-empty { display: flex; align-items: center; justify-content: center; }
 .tv-timing-pending { color: #896b57; font-size: min(1.1vw, 1.95vh); }
-@keyframes tv-run-bob { from { transform: translateY(0); } to { transform: translateY(-2px); } }
-@keyframes tv-run-limb { from { transform: rotate(-5deg); } to { transform: rotate(6deg); } }
+@keyframes tv-run-bob { 0%, 50%, 100% { transform: translateY(0); } 25%, 75% { transform: translateY(-4px); } }
+@keyframes tv-run-hip-front { 0%, 100% { transform: rotate(-40deg); } 50% { transform: rotate(40deg); } }
+@keyframes tv-run-hip-back { 0%, 100% { transform: rotate(40deg); } 50% { transform: rotate(-40deg); } }
+@keyframes tv-run-knee-front { 0%, 100% { transform: rotate(8deg); } 25% { transform: rotate(28deg); } 50% { transform: rotate(58deg); } 75% { transform: rotate(38deg); } }
+@keyframes tv-run-knee-back { 0%, 100% { transform: rotate(58deg); } 25% { transform: rotate(38deg); } 50% { transform: rotate(8deg); } 75% { transform: rotate(28deg); } }
+@keyframes tv-run-arm-front { 0%, 100% { transform: rotate(36deg); } 50% { transform: rotate(-36deg); } }
+@keyframes tv-run-arm-back { 0%, 100% { transform: rotate(-36deg); } 50% { transform: rotate(36deg); } }
+@keyframes tv-run-elbow-front { 0%, 100% { transform: rotate(-55deg); } 50% { transform: rotate(-25deg); } }
+@keyframes tv-run-elbow-back { 0%, 100% { transform: rotate(25deg); } 50% { transform: rotate(55deg); } }
 @media (prefers-reduced-motion: reduce) {
-  .tv-mascot-bob, .tv-mascot-arm, .tv-mascot-leg { animation: none; }
+  .tv-mascot-bob, .tv-run-arm, .tv-run-elbow, .tv-run-hip, .tv-run-knee { animation: none; }
+  .tv-run-hip-front { transform: rotate(-40deg); }
+  .tv-run-hip-back { transform: rotate(40deg); }
+  .tv-run-knee-front { transform: rotate(8deg); }
+  .tv-run-knee-back { transform: rotate(58deg); }
+  .tv-run-arm-front { transform: rotate(36deg); }
+  .tv-run-arm-back { transform: rotate(-36deg); }
+  .tv-run-elbow-front { transform: rotate(-55deg); }
+  .tv-run-elbow-back { transform: rotate(25deg); }
 }
 .tv-screen .tv-missing { font-size: min(1.35vw, 2.3vh); color: var(--tv-muted); }
 .tv-primary .tv-missing, .tv-history > .tv-missing { font-size: min(2.7vw, 4.6vh); }

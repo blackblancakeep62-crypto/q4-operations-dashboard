@@ -10,12 +10,32 @@ function Rate({value}: {value: number | null}) { return <strong className={value
 function SprintMascot() {
   return <svg className="tv-mascot" viewBox="0 0 80 68" role="img" aria-label="跑步火柴人">
     <g className="tv-mascot-bob">
-      <circle className="tv-mascot-head" cx="40" cy="11" r="8" />
-      <path className="tv-mascot-line tv-mascot-body" d="M40 20L38 39" />
-      <path className="tv-mascot-line tv-mascot-arm tv-mascot-arm-back" d="M39 25L27 33L19 28" />
-      <path className="tv-mascot-line tv-mascot-arm tv-mascot-arm-front" d="M39 25L51 31L59 23" />
-      <path className="tv-mascot-line tv-mascot-leg tv-mascot-leg-back" d="M38 39L28 51L18 49" />
-      <path className="tv-mascot-line tv-mascot-leg tv-mascot-leg-front" d="M38 39L49 51L61 54" />
+      <g className="tv-run-hip tv-run-hip-back">
+        <path className="tv-mascot-line" d="M36 41L36 54" />
+        <g className="tv-run-knee tv-run-knee-back">
+          <path className="tv-mascot-line" data-foot="back" d="M36 54L37 67" />
+        </g>
+      </g>
+      <g className="tv-run-arm tv-run-arm-back">
+        <path className="tv-mascot-line" d="M40 25L40 37" />
+        <g className="tv-run-elbow tv-run-elbow-back">
+          <path className="tv-mascot-line" data-hand="back" d="M40 37L41 48" />
+        </g>
+      </g>
+      <path className="tv-mascot-line tv-mascot-body" d="M41 20L36 41" />
+      <circle className="tv-mascot-head" cx="43" cy="11" r="8" />
+      <g className="tv-run-hip tv-run-hip-front">
+        <path className="tv-mascot-line" d="M36 41L36 54" />
+        <g className="tv-run-knee tv-run-knee-front">
+          <path className="tv-mascot-line" data-foot="front" d="M36 54L37 67" />
+        </g>
+      </g>
+      <g className="tv-run-arm tv-run-arm-front">
+        <path className="tv-mascot-line" d="M40 25L40 37" />
+        <g className="tv-run-elbow tv-run-elbow-front">
+          <path className="tv-mascot-line" data-hand="front" d="M40 37L41 48" />
+        </g>
+      </g>
     </g>
   </svg>;
 }
